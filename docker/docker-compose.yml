@@ -4,7 +4,7 @@ networks:
     driver: bridge
 services:
   mysql:
-    image: mysql:latest
+    image: mysql:8.0
     hostname: "mysql"
     restart: always
     networks:
@@ -14,17 +14,20 @@ services:
       - MYSQL_DATABASE=mygeektime
     volumes:
       - ./mysql/data:/var/lib/mysql
+      - ./mysql/conf.d:/etc/mysql/conf.d
       - ./mysql/init/init.sql:/docker-entrypoint-initdb.d/init.sql
       - ./mysql/init/sys_dicts.sql:/docker-entrypoint-initdb.d/sys_dicts.sql
       - /etc/localtime:/etc/localtime:ro
-    ports:
-      - "33060:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
+      timeout: 20s
+      retries: 10
+      start_period: 40s
+      interval: 10s
   server:
     hostname: mygeektime
-    # build: ../         # build  from local dockerfile
-    image: zkep/mygeektime:latest
-    platform: linux/amd64  # linux/arm64 指定架构平台
-    privileged: true
+    build: ./my-geektime
+    platform: linux/amd64
     restart: always
     networks:
       - mygeektime
@@ -37,4 +40,5 @@ services:
       -  ./server/repo:/repo
       -  ./server/config.yml:/config.yml
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
