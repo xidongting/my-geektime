@@ -21,6 +21,7 @@ storage: # mp4 or mp3 save folder
   directory: repo  # Customize download folder, default to execute repo directory under the directory
   bucket: object
   host: http://127.0.0.1:8090  # Keep the port consistent with the http_port in the server
+  auto_host: true  # Automatically detect host, when true, use the request host instead of the configured host
 browser:
   open_browser: true # Automatically open browser after service startup
 site:

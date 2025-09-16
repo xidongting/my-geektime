@@ -25,6 +25,7 @@ storage:                  # 音视频资源下载目录，
   directory: repo         # 本地目录
   bucket: object          # 访问链接前缀，没有特殊需求，可以不用修改
   host: http://127.0.0.1:8090  # 如果是本地服务，端口需要和上面的http_port保持一致，如果配置了域名请换成自己的域名
+  auto_host: true         # 是否自动检测host，当为true时，使用请求的host而不是配置的host，适用于复杂的网络环境（如tailscale）
 browser:
   open_browser: true       # 默认启动会自动打开浏览器访问，docker部署无视改参数
 site:                      # 站点配置

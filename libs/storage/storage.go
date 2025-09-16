@@ -16,6 +16,7 @@ type Storage interface {
 	Delete(string) error
 	GetKey(key string, isReal bool) string
 	GetUrl(key string) string
+	GetUrlWithHost(key string, host string) string
 }
 
 var _ Storage = (*LocalStorage)(nil)
@@ -135,10 +136,36 @@ func (ls *LocalStorage) GetKey(key string, isReal bool) string {
 }
 
 func (ls *LocalStorage) GetUrl(key string) string {
-	if strings.HasPrefix(key, ls.prefix) {
-		return fmt.Sprintf("%s/%s", ls.host, strings.TrimPrefix(key, ls.prefix))
+	return ls.GetUrlWithHost(key, ls.host)
+}
+
+// GetUrlWithHost 支持使用指定的host生成URL
+func (ls *LocalStorage) GetUrlWithHost(key string, host string) string {
+	// 输入验证
+	if key == "" {
+		return ""
 	}
-	key = strings.TrimPrefix(key, ls.directory)
-	key = strings.TrimPrefix(key, "/")
-	return fmt.Sprintf("%s/%s/%s", ls.host, ls.bucket, key)
+
+	// 清理host末尾的斜杠
+	host = strings.TrimSuffix(host, "/")
+
+	// 处理带前缀的key
+	if strings.HasPrefix(key, ls.prefix) {
+		cleanKey := strings.TrimPrefix(key, ls.prefix)
+		if host == "" {
+			return fmt.Sprintf("/%s", cleanKey)
+		}
+		return fmt.Sprintf("%s/%s", host, cleanKey)
+	}
+
+	// 处理普通key
+	cleanKey := strings.TrimPrefix(key, ls.directory)
+	cleanKey = strings.TrimPrefix(cleanKey, "/")
+
+	// 如果host为空，返回相对路径
+	if host == "" {
+		return fmt.Sprintf("/%s/%s", ls.bucket, cleanKey)
+	}
+
+	return fmt.Sprintf("%s/%s/%s", host, ls.bucket, cleanKey)
 }

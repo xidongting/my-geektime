@@ -21,6 +21,7 @@ import (
 	"github.com/zkep/my-geektime/internal/service"
 	"github.com/zkep/my-geektime/internal/types/geek"
 	"github.com/zkep/my-geektime/internal/types/task"
+	"github.com/zkep/my-geektime/internal/utils"
 	"github.com/zkep/my-geektime/libs/zhttp"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -123,7 +124,7 @@ func (t *Task) List(c *gin.Context) {
 					row.Dir = fmt.Sprintf("%s/", row.Dir)
 				}
 				if len(taskMessage.Doc) > 0 {
-					row.Doc = global.Storage.GetUrl(taskMessage.Doc)
+					row.Doc = utils.GetStorageURL(c, taskMessage.Doc)
 				}
 			}
 		case service.TASK_TYPE_ARTICLE:
@@ -186,7 +187,11 @@ func (t *Task) Info(c *gin.Context) {
 	if len(l.Message) > 0 {
 		_ = json.Unmarshal(l.Message, &taskMessage)
 		if len(taskMessage.Object) > 0 {
-			taskMessage.Object = global.Storage.GetUrl(taskMessage.Object)
+			taskMessage.Object = utils.GetStorageURL(c, taskMessage.Object)
+		}
+		// 如果配置了自动获取host，则使用请求的host，否则使用配置的host
+		if len(taskMessage.Doc) > 0 {
+			taskMessage.Doc = utils.GetStorageURL(c, taskMessage.Doc)
 		}
 	}
 
