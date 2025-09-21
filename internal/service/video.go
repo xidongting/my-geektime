@@ -236,25 +236,40 @@ func Video(ctx context.Context, dir, fileName string, req *PlayMeta) (string, er
 		}
 	}
 
+	// 构建FFmpeg命令：输入参数 -> 输入文件 -> 输出参数 -> 输出文件
 	ffmpeg_command := []string{
 		"-allowed_extensions",
 		"ALL",
 		"-protocol_whitelist",
 		"concat,file,http,https,tcp,tls,crypto",
-		"-c",
-		"copy",
-		"-movflags",
-		"frag_keyframe+empty_moov",
 		"-i",
 		path.Join(destDir, "index.m3u8"),
 	}
 	if len(req.KeyPath) > 0 {
-		ffmpeg_command = append(ffmpeg_command, "-hls_key_info_file", path.Join(destDir, "key.key"))
+    	ffmpeg_command = append(ffmpeg_command, "-hls_key_info_file", path.Join(destDir, "key.key"))
 	}
-	ffmpeg_command = append(ffmpeg_command, "-c", "copy", concatPath)
+	ffmpeg_command = append(ffmpeg_command,
+		"-c",
+		"copy",
+		"-movflags",
+		"frag_keyframe+empty_moov",
+		concatPath,
+	)
+	// 记录完整的FFmpeg命令和参数，便于调试
+	global.LOG.Info("video ffmpeg command", 
+		zap.Strings("command", ffmpeg_command),
+		zap.String("destDir", destDir),
+		zap.String("m3u8Path", path.Join(destDir, "index.m3u8")))
 	global.LOG.Info("video", zap.String("concatPath", concatPath))
+	
 	output, err := exec.CommandContext(retryCtx, "ffmpeg", ffmpeg_command...).CombinedOutput()
 	if err != nil {
+		// 记录详细的错误信息和命令，便于问题诊断
+		global.LOG.Error("ffmpeg execution failed", 
+			zap.Error(err), 
+			zap.String("output", string(output)),
+			zap.Strings("command", ffmpeg_command),
+			zap.String("destDir", destDir))
 		return "", fmt.Errorf("%s,%s", err.Error(), string(output))
 	}
 	global.LOG.Info("video", zap.String("removeAll", destDir))
