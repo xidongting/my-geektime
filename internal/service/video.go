@@ -161,7 +161,8 @@ func RewritePlay(ctx context.Context, req PlayMetaRequest) (*PlayMeta, error) {
 }
 
 func Video(ctx context.Context, dir, fileName string, req *PlayMeta) (string, error) {
-	retryCtx, retryCancel := context.WithTimeout(ctx, time.Minute*10)
+	// 增加超时时间到30分钟，以处理大型视频文件
+	retryCtx, retryCancel := context.WithTimeout(ctx, time.Minute*30)
 	defer retryCancel()
 
 	if len(req.Parts) == 0 {
@@ -242,19 +243,24 @@ func Video(ctx context.Context, dir, fileName string, req *PlayMeta) (string, er
 		"ALL",
 		"-protocol_whitelist",
 		"concat,file,http,https,tcp,tls,crypto",
-		"-i",
-		path.Join(destDir, "index.m3u8"),
 	}
+
 	if len(req.KeyPath) > 0 {
+		// 对于加密的HLS流，需要使用-hls_key_info_file参数
 		ffmpeg_command = append(ffmpeg_command, "-hls_key_info_file", path.Join(destDir, "key.key"))
 	}
+
 	ffmpeg_command = append(ffmpeg_command,
+		"-i",
+		path.Join(destDir, "index.m3u8"),
 		"-c",
 		"copy",
 		"-bsf:a",
 		"aac_adtstoasc",
 		"-movflags",
 		"frag_keyframe+empty_moov",
+		"-max_muxing_queue_size",
+		"9999",
 		concatPath,
 	)
 	// 记录完整的FFmpeg命令和参数，便于调试
@@ -264,7 +270,19 @@ func Video(ctx context.Context, dir, fileName string, req *PlayMeta) (string, er
 		zap.String("m3u8Path", path.Join(destDir, "index.m3u8")))
 	global.LOG.Info("video", zap.String("concatPath", concatPath))
 
-	output, err := exec.CommandContext(retryCtx, "ffmpeg", ffmpeg_command...).CombinedOutput()
+	// 创建命令并设置输出捕获
+	cmd := exec.CommandContext(retryCtx, "ffmpeg", ffmpeg_command...)
+
+	// 实时捕获FFmpeg输出用于日志记录
+	var stdoutBuf, stderrBuf bytes.Buffer
+	cmd.Stdout = io.MultiWriter(&stdoutBuf)
+	cmd.Stderr = io.MultiWriter(&stderrBuf)
+
+	err = cmd.Run()
+
+	// 检查是否有输出
+	output := append(stdoutBuf.Bytes(), stderrBuf.Bytes()...)
+
 	if err != nil {
 		// 记录详细的错误信息和命令，便于问题诊断
 		global.LOG.Error("ffmpeg execution failed",
